@@ -1,0 +1,866 @@
+<!doctype html>
+<html lang="en">
+  
+<!-- Key notes before project ends: Make sure formatting is right, add in all the extra elements and pray the code works. Reformat Element Key into Nuclide symbol, switch mass number position with atomic mass, then make atomic mass into mass number. Further explain the calculation of average atomic mass. Slap labels for representative groups and explain. Slap labels for s,p,d,f blocks, have full electron configuration written out. Describe and explain periodic trends.
+
+-->
+<head>
+<meta charset="utf-8" />
+<title>Interactive Atom — full build</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+:root{--bg:#0f172a;--card:#111827;--line:#1f2937;--muted:#94a3b8;--accent:#22c55e;--accent2:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#e5e7eb;font-family:system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.topbar{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.topbar h1{margin:0;font-size:18px;font-weight:600}.subtitle{font-size:13px;color:#a7b0c0}
+.layout{display:grid;grid-template-columns:560px 1fr;gap:12px;padding:12px}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+
+/* periodic table */
+.credits{font-size:13px;color:#0E62C7;font-weight:800}
+.ptable{padding:8px;display:flex;flex-direction:column;gap:3px;position:relative}
+.ptable-row{display:grid;grid-template-columns:repeat(18,26px);gap:3px}
+.cell{width:26px;height:26px;border:1px solid var(--line);border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:12px;background:#0b1220;cursor:pointer}
+.cell.empty{opacity:.18;pointer-events:none}.cell:hover{background:#1e293b}.cell.selected{outline:2px solid var(--accent)}
+.blockLabel,.groupLabel{position:absolute;font-size:12px;color:var(--muted);pointer-events:none}
+
+/* main */
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{padding:10px 12px;cursor:pointer;font-weight:600;color:#a7b0c0;background:none;border:none}
+.tab.active{color:#e5e7eb;border-bottom:2px solid var(--accent)}
+.tabview{padding:12px}
+
+/* infor */
+.info-header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
+.symbol{font-size:36px;font-weight:800}.name{font-size:13px;color:#cbd5e1}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.badge{display:inline-block;padding:2px 6px;border:1px solid var(--line);border-radius:999px;font-size:11px;color:#cbd5e1;background:#0b1220;cursor:pointer}
+.slider{display:flex;align-items:center;gap:10px;margin:8px 0 12px}input[type="range"]{width:180px}
+.key{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:6px;font-size:13px}
+.key button{background:#0b1220;border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:#e5e7eb;cursor:pointer;text-align:left}
+.key b{display:block;color:#cbd5e1;font-size:12px}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}.stats{font-size:12px;color:#a7b0c0;margin-top:4px}
+
+/* info subtabs */
+.subtabs{display:flex;gap:8px;margin:0 0 8px}
+.subtab{padding:6px 10px;border:1px solid var(--line);background:#0b1220;color:#cbd5e1;border-radius:8px;cursor:pointer;font-size:12px}
+.subtab.active{outline:2px solid var(--accent)}
+
+/* other stuff */
+.keytile{width:160px;height:180px;background:#0b1220;border:1px solid var(--line);border-radius:10px;position:relative;padding:8px;display:grid;place-items:center;margin-top:6px}
+.key-num{position:absolute;top:6px;left:8px}
+.key-charge{position:absolute;top:6px;right:8px}
+.key-sym{font-size:44px;font-weight:800}
+.key-mass{position:absolute;bottom:6px;left:8px}
+.key-btn{background:none;border:none;color:#e5e7eb;cursor:pointer;padding:0}
+
+/* element structure thing name thing*/
+.cardtile{width:200px;min-height:180px;background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:10px;display:grid;grid-template-rows:auto auto auto 1fr auto;gap:4px}
+.card-top{display:flex;justify-content:space-between;align-items:center}
+.card-top .mass,.card-bottom .anum{font-weight:600}
+.card-sym{font-size:48px;font-weight:800;text-align:center;line-height:1}
+.card-name{text-align:center;color:#cbd5e1}
+.card-bottom{display:flex;justify-content:space-between;align-items:center}
+.card-btn{background:none;border:none;color:#e5e7eb;cursor:pointer;padding:0}
+
+/* models */
+.models-subtabs{display:flex;gap:8px;margin:8px 0 12px}
+.models-subtab{padding:6px 10px;border:1px solid var(--line);background:#0b1220;color:#cbd5e1;border-radius:8px;cursor:pointer;font-size:12px}
+.models-subtab.active{outline:2px solid var(--accent2)}
+.box{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:8px;margin-bottom:8px}
+
+/* orbitals */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px}
+.cell3d{background:#0b1220;border:1px solid var(--line);border-radius:10px;padding:6px;position:relative}
+.cell3d b{display:block;font-size:12px;color:#cbd5e1;margin-bottom:4px}
+
+/* m */
+.modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:50}
+.modal{background:#0b1220;border:1px solid var(--line);border-radius:12px;padding:12px;max-width:480px}
+.modal h3{margin:0 0 6px;font-size:16px}
+.modal p{margin:0;color:#cbd5e1;font-size:14px}
+
+/* nuclide symbol */
+.nuclide{position:relative; width:120px; height:110px; display:grid; place-items:center}
+.nu-sym{font-size:44px;font-weight:800;line-height:1}
+.nu-A{position:absolute;left:10px;top:8px;font-size:16px}
+.nu-Z{position:absolute;left:10px;bottom:8px;font-size:14px}
+.nu-Q{position:absolute;right:10px;top:8px;font-size:14px}
+.nu-name{position:absolute;right:10px;bottom:8px;font-size:12px;color:#cbd5e1}
+.keytile{width:200px;height:160px;display:grid;place-items:center}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.9.0/p5.min.js"></script>
+</head>
+
+<body>
+<header class="topbar">
+  <h1>Unit 1 Chemistry Project</h1>
+  <span class="subtitle">Interactive periodic table. </span>
+  <span class="credits">Created By Yaakov Englander, David Coley, and Jacob Nguyen, all information from https://pubchem.ncbi.nlm.nih.gov/periodic-table/.</span>
+    <span class="subtitle">Some parts of this code are derived from Dlaby23s project 'InteractivePeriodicTable' on GitHub, this is also the inspiration for the project.</span>
+</header>
+
+<main class="layout">
+  <section class="panel">
+    <div id="ptable" class="ptable" aria-label="Periodic Table"></div>
+  </section>
+
+  <section class="panel">
+    <nav class="tabs">
+      <button class="tab active" data-tab="info">Info</button>
+      <button class="tab" data-tab="models">Models</button>
+    </nav>
+
+    <section id="view-info" class="tabview" style="display:block">
+      <div id="infoSubtabs" class="subtabs">
+        <button class="subtab active" data-sub="details">Details</button>
+        <button class="subtab" data-sub="key">Nucleide symbol</button>
+        <button class="subtab" data-sub="card">Periodic Element</button>
+      </div>
+      <div id="infoPane"></div>
+    </section>
+
+    <section id="view-models" class="tabview" style="display:none">
+      <div class="models-subtabs">
+        <button class="models-subtab active" data-mtab="bohr">Bohr</button>
+        <button class="models-subtab" data-mtab="orbitals">Orbitals</button>
+        <button class="models-subtab" data-mtab="forces">forces in the atom</button>
+        <button class="models-subtab" data-mtab="laws">Laws</button>
+      </div>
+      <div id="modelsPane"></div>
+    </section>
+  </section>
+</main>
+
+<!-- Moalda -->
+<div id="modalBD" class="modal-backdrop">
+  <div class="modal"><h3 id="mTitle"></h3><p id="mText"></p></div>
+</div>
+
+<script>
+/* ---------------- Elements UNFINISHED FINISH BEFORE PROJECT GETS TURNED IN ---------------- */
+const ELEMENTS=[
+  {Z:1,sym:"H", name:"Hydrogen", mass:1.008, group:1,  period:1, cat:"nonmetal",  family:"nonmetals", EN:2.20, IE1:13.6, radio:false, uses:"One of the most basic elements very reactive. Is one of the base building blocks of life"},
+  {Z:2,sym:"He",name:"Helium",   mass:4.003, group:18, period:1, cat:"noble gas", family:"noble gases", EN:2.5, IE1:24.6, radio:false, uses:"Most stable gas, electrons are almost unseperatable from the nucleas, used in many contraptions including baloons, negates weight"},
+  {Z:3,sym:"Li",name:"Lithium",  mass:6.94,  group:1,  period:2, cat:"metal",     family:"alkali metals", EN:0.98, IE1:5.39, radio:false, uses:"Reactive metal, used in batteries mainly"},
+  {Z:4,sym:"Be",name:"Beryllium",mass:9.012, group:2,  period:2, cat:"metal",     family:"alkaline earth metals", EN:1.57, IE1:9.32, radio:false, uses:"Metal used in X rays and aerospace"},
+  {Z:5,sym:"B", name:"Boron",    mass:10.81, group:13, period:2, cat:"metalloid", family:"metalloids", EN:2.04, IE1:8.30, radio:false, uses:"Semiconductor used in rockets and nuclear reactors"},
+  {Z:6,sym:"C", name:"Carbon",   mass:12.01, group:14, period:2, cat:"nonmetal",  family:"nonmetals", EN:2.55, IE1:11.26,radio:false, uses:"One of the most useful elements, carbon is found almost everywhere as it is one of the main builidng blocks of life as well as one of the strongest and most stable elements (diamonds)"},
+  {Z:7,sym:"N", name:"Nitrogen", mass:14.01, group:15, period:2, cat:"nonmetal",  family:"nonmetals", EN:3.04, IE1:14.53,radio:false, uses:"Dustlike substance used in fertilizers and biology also a builidng block of life"},
+  {Z:8,sym:"O", name:"Oxygen",   mass:16.00, group:16, period:2, cat:"nonmetal",  family:"nonmetals", EN:3.44, IE1:13.62,radio:false, uses:"A gas, makes up most of the air we breath and is needed for respiration."},
+  {Z:9,sym:"F", name:"Fluorine", mass:19.00, group:17, period:2, cat:"nonmetal",  family:"halogens", EN:3.98, IE1:17.42,radio:false, uses:"Most reactive element on the periodic table and accoridng to some VERY trustable sources (me) the best and coolest element. Is extrordinarily toxic but is also used in your toothpase!"},
+  {Z:10,sym:"Ne",name:"Neon",    mass:20.18, group:18, period:2, cat:"noble gas", family:"noble gases", EN:null, IE1:21.56,radio:false, uses:"A stable gas, used in Neon signs and anything that has to do with NEON as a concept"},
+  {Z:11,sym:"Na",name:"Sodium",  mass:22.99, group:1,  period:3, cat:"metal",     family:"alkali metals", EN:0.93, IE1:5.14, radio:false, uses:"Highly reactive metal mainly used in salt but can be found in many other places"},
+  {Z:12,sym:"Mg",name:"Magnesium", mass:24.305, group:2, period:3, cat:"metal",    family:"alkaline earth metals",  EN:1.31, IE1:7.6462, radio:false, uses:"Reactive metal mainly used for bone health and lab tech."},
+  {Z:13,sym:"Al",name:"Aluminium",  mass:26.982, group:13,  period:3, cat:"metal",     family:"post transition metals", EN:1.61, IE1:5.9858, radio:false, uses:"Lightweight metal used in foil, cans, structures, and many other commertial products."},
+  {Z:14,sym:"Si",name:"Silicon",  mass:28.09, group:14,  period:3, cat:"metalloid",     family:"metalloids", EN:1.9, IE1:8.1517, radio:false, uses:"Semiconductor - using to make semiconductors, ceramics, and glass."},
+  {Z:15,sym:"P", name:"Phosphorus",  mass:30.97, group:15,  period:3, cat:"nonmetal",     family:"nonmetal", EN:2.19, IE1:10.4867, radio:false, uses:"Common element used by plants a lot used for fertilizers as well as medicine."},
+  {Z:16,sym:"S", name:"Sulfur",  mass:32.06, group:16,  period:3, cat:"nonmetal",     family:"nonmetal", EN:2.58, IE1:10.36, radio:false, uses:"Toxic dust, used in fertilizers and many chemical compounds "},
+  {Z:17,sym:"Cl",name:"Chlorine",mass:35.45, group:17, period:3, cat:"nonmetal",  family:"halogens", EN:3.16, IE1:12.97,radio:false, uses:"Highly toxic gas used mainly as disinfectents and pesticides as it is great at killing bacteria. Highly reactive and vulnerable to UV rays."},
+  {Z:18,sym:"Ar",name:"Argon",   mass:39.95, group:18, period:3, cat:"noble gas", family:"noble gases", EN:null, IE1:15.76,radio:false, uses:"A noble gas that makes up about 1% of the air, used in lighting and labs"},
+
+  {Z:19,sym:"K",  name:"Potassium",mass:39.10,group:1,  period:4, cat:"metal", family:"alkali metals", EN:0.82, IE1:4.34, radio:false, uses:"reactive metal found throughout biology, used in fertilizers and utilized within our own bodies."},
+  {Z:20,sym:"Ca", name:"Calcium",  mass:40.08,group:2,  period:4, cat:"metal", family:"alkaline earth metals", EN:1.00, IE1:6.1132, radio:false, uses:"Calcium is a reactive metal found mainly in biology as it is th source of strong bones. Calcium can also be found in milk and cement."},
+  {Z:21,sym:"Sc", name:"Scandium", mass:44.96,group:3,  period:4, cat:"metal", family:"transition metals", EN:1.36, IE1:6.5614, radio:false, uses:"Metal used in aerospace, automibles, and many other industrial uses."},
+  {Z:22,sym:"Ti", name:"Titanium", mass:47.87,group:4,  period:4, cat:"metal", family:"transition metals", EN:1.54, IE1:6.8282, radio:false, uses:"Extremely strong metal used throughout aerospace, medical, and automobile fields."},
+  {Z:23,sym:"V", name:"Vanadium", mass:50.94,group:5,  period:4, cat:"metal", family:"transition metals", EN:1.63, IE1:6.746, radio:false, uses:"Corrosive resistant metal used to make piping and is used in the nuclear power plant industry due to the fact that it does not easily absorb neutrons"},
+  {Z:24,sym:"Cr", name:"Chromium", mass:51.996,group:6,  period:4, cat:"metal", family:"transition metals", EN:1.66, IE1:6.767, radio:false, uses:"Blue hard very brittle corrosive resistant metal used for protective and attractive covering. Used mainly by cars to create the shiny look."},
+  {Z:25,sym:"Mn", name:"Manganese", mass:54.94,group:7,  period:4, cat:"metal", family:"transition metals", EN:1.55, IE1:7.434, radio:false, uses:"Used to manufacture steel, raises the impact resistance and strength of steel and removes sulfur from it."},
+{Z:26,sym:"Fe",name:"Iron",mass:55.85,group:8,period:4,cat:"metal",family:"transition metals",EN:1.83,IE1:7.9,radio:false,uses:"Strong gray metal used in steel, construction, and blood. Rusts easy but very common."},
+{Z:27,sym:"Co",name:"Cobalt",mass:58.93,group:9,period:4,cat:"metal",family:"transition metals",EN:1.88,IE1:7.88,radio:false,uses:"Hard bluish metal used in batteries and magnets. A little toxic but super useful."}, {Z:28,sym:"Ni",name:"Nickel",mass:58.69,group:10,period:4,cat:"metal",family:"transition metals",EN:1.91,IE1:7.64,radio:false,uses:"Shiny silver metal used in coins, wires, and stainless steel."},  {Z:29,sym:"Cu",name:"Copper",mass:63.55,group:11,period:4,cat:"metal",family:"transition metals",EN:1.90,IE1:7.73,radio:false,uses:"Reddish metal that’s great at carrying electricity. Used in wires, pipes, and coins."},  {Z:30,sym:"Zn",name:"Zinc",mass:65.38,group:12,period:4,cat:"metal",family:"transition metals",EN:1.65,IE1:9.39,radio:false,uses:"Gray metal used to stop rust, make batteries, and in vitamins."},  {Z:31,sym:"Ga",name:"Gallium",mass:69.72,group:13,period:4,cat:"metal",family:"post transition metals",EN:1.81,IE1:6.00,radio:false,uses:"Soft silver metal that melts in your hand. Used in LEDs and computer chips."},  {Z:32,sym:"Ge",name:"Germanium",mass:72.63,group:14,period:4,cat:"metalloid",family:"metalloids",EN:2.01,IE1:7.90,radio:false,uses:"Gray shiny metalloid used in electronics and fiber optics."},  {Z:33,sym:"As",name:"Arsenic",mass:74.92,group:15,period:4,cat:"metalloid",family:"metalloids",EN:2.18,IE1:9.79,radio:false,uses:"Gray brittle metalloid, very toxic. Used in semiconductors and wood treatment."},  {Z:34,sym:"Se",name:"Selenium",mass:78.97,group:16,period:4,cat:"nonmetal",family:"nonmetals",EN:2.55,IE1:9.75,radio:false,uses:"Gray or red solid used in solar panels and glass. Needed in small amounts for health."},  {Z:35,sym:"Br",name:"Bromine",mass:79.90,group:17,period:4,cat:"nonmetal",family:"halogens",EN:2.96,IE1:11.81,radio:false,uses:"Dark red liquid that smells bad. Used in flame retardants and photography."},
+  {Z:36,sym:"Kr",name:"Krypton",mass:83.80,group:18,period:4,cat:"noble gas",family:"noble gases",EN:null,IE1:13.99,radio:false,uses:"Colorless gas used in lights and lasers. Totally stable."},  {Z:37,sym:"Rb",name:"Rubidium",mass:85.47,group:1,period:5,cat:"metal",family:"alkali metals",EN:0.82,IE1:4.18,radio:false,uses:"Soft silver metal that reacts fast with water. Used in research and atomic clocks."},  {Z:38,sym:"Sr",name:"Strontium",mass:87.62,group:2,period:5,cat:"metal",family:"alkaline earth metals",EN:0.95,IE1:5.70,radio:false,uses:"Soft metal that burns red in fireworks and is used in magnets."},  {Z:39,sym:"Y",name:"Yttrium",mass:88.91,group:3,period:5,cat:"metal",family:"transition metals",EN:1.22,IE1:6.22,radio:false,uses:"Silver-gray metal used in LEDs, lasers, and alloys."},  {Z:40,sym:"Zr",name:"Zirconium",mass:91.22,group:4,period:5,cat:"metal",family:"transition metals",EN:1.33,IE1:6.63,radio:false,uses:"Gray metal used in nuclear reactors and heat-resistant materials."}, {Z:41,sym:"Nb",name:"Niobium",mass:92.91,group:5,period:5,cat:"metal",family:"transition metals",EN:1.60,IE1:6.76,radio:false,uses:"Gray metal used in jet engines and superconductors."},  {Z:42,sym:"Mo",name:"Molybdenum",mass:95.95,group:6,period:5,cat:"metal",family:"transition metals",EN:2.16,IE1:7.09,radio:false,uses:"Silver metal used in steel and enzymes. High melting point."},  {Z:43,sym:"Tc",name:"Technetium",mass:98,group:7,period:5,cat:"metal",family:"transition metals",EN:1.90,IE1:7.28,radio:true,uses:"Gray radioactive metal used in medical scans."},  {Z:44,sym:"Ru",name:"Ruthenium",mass:101.07,group:8,period:5,cat:"metal",family:"transition metals",EN:2.20,IE1:7.36,radio:false,uses:"Shiny silver metal used in electronics and jewelry."},  {Z:45,sym:"Rh",name:"Rhodium",mass:102.91,group:9,period:5,cat:"metal",family:"transition metals",EN:2.28,IE1:7.46,radio:false,uses:"Shiny silver-white metal used in car exhaust systems and jewelry."},  {Z:46,sym:"Pd",name:"Palladium",mass:106.42,group:10,period:5,cat:"metal",family:"transition metals",EN:2.20,IE1:8.34,radio:false,uses:"Silvery metal used in electronics, jewelry, and catalytic converters."}, {Z:47,sym:"Ag",name:"Silver",mass:107.87,group:11,period:5,cat:"metal",family:"transition metals",EN:1.93,IE1:7.58,radio:false,uses:"Shiny white metal used in jewelry, coins, and electronics."}, {Z:48,sym:"Cd",name:"Cadmium",mass:112.41,group:12,period:5,cat:"metal",family:"transition metals",EN:1.69,IE1:8.99,radio:false,uses:"Soft silver metal used in batteries and pigments. Toxic though."}, {Z:49,sym:"In",name:"Indium",mass:114.82,group:13,period:5,cat:"metal",family:"post transition metals",EN:1.78,IE1:5.79,radio:false,uses:"Soft shiny metal used in touchscreens and solar panels."}, {Z:50,sym:"Sn",name:"Tin",mass:118.71,group:14,period:5,cat:"metal",family:"post transition metals",EN:1.96,IE1:7.34,radio:false,uses:"Soft silver metal used in cans, solder, and bronze."}, {Z:51,sym:"Sb",name:"Antimony",mass:121.76,group:15,period:5,cat:"metalloid",family:"metalloids",EN:2.05,IE1:8.61,radio:false,uses:"Gray shiny metalloid used in flame retardants and batteries."}, {Z:52,sym:"Te",name:"Tellurium",mass:127.60,group:16,period:5,cat:"metalloid",family:"metalloids",EN:2.10,IE1:9.01,radio:false,uses:"Silvery brittle metalloid used in solar panels and alloys."}, {Z:53,sym:"I",name:"Iodine",mass:126.90,group:17,period:5,cat:"nonmetal",family:"halogens",EN:2.66,IE1:10.45,radio:false,uses:"Dark purple solid that turns into violet gas. Used in medicine and disinfectants."},
+  {Z:54,sym:"Xe",name:"Xenon",mass:131.29,group:18,period:5,cat:"noble gas",family:"noble gases",EN:null,IE1:12.13,radio:false,uses:"Colorless gas used in flashlights, lamps, and anesthesia."},
+
+  {Z:92,sym:"U", name:"Uranium", mass:238.029,group:5,  period:7, cat:"Actanide", family:"Actanides", EN:1.38, IE1:6.1941, radio:true, uses:"Radioactive element used in nuclear fusion"},
+];
+const byZ=(function(){const m={};for(const e of ELEMENTS){if(m[e.Z]) console.warn('Duplicate Z',e.Z,e.sym,'over',m[e.Z].sym);m[e.Z]=e;}return m;})();
+
+/* ---------------- states ---------------- */
+const State={selectedZ:1,deltaE:0,deltaN:0,ls:{},infoTab:'details',modelsTab:'bohr'};
+State.on=(ev,fn)=>((State.ls[ev]??=[]).push(fn));
+State.emit=(ev,d)=>(State.ls[ev]||[]).forEach(f=>f(d));
+State.setElement=Z=>{State.selectedZ=Z;State.emit('element',Z)};
+State.setDeltaE=v=>{State.deltaE=v;State.emit('electrons',v)};
+State.setDeltaN=v=>{State.deltaN=v;State.emit('neutrons',v)};
+State.setInfoTab=v=>{State.infoTab=v;State.emit('infoTab',v)};
+State.setModelsTab=v=>{State.modelsTab=v;State.emit('modelsTab',v)};
+
+/* ---------------- modal ---------------- */
+function showModal(title,text){
+  document.getElementById('mTitle').textContent=title;
+  document.getElementById('mText').innerHTML=text;
+  document.getElementById('modalBD').style.display='flex';
+}
+document.getElementById('modalBD').onclick=(e)=>{ if(e.target.id==='modalBD') e.currentTarget.style.display='none'; };
+
+/* ---------------- periodic table ---------------- */
+const MAX_PERIOD=7,MAX_GROUP=18;
+function buildTable(){
+  const wrap=document.getElementById('ptable'); wrap.innerHTML='';
+  for(let r=1;r<=MAX_PERIOD;r++){
+    const row=document.createElement('div'); row.className='ptable-row';
+    for(let c=1;c<=MAX_GROUP;c++){
+      const cell=document.createElement('div'); cell.className='cell empty';
+      row.appendChild(cell);
+    }
+    wrap.appendChild(row);
+  }
+  ELEMENTS.forEach(e=>{
+    const cell=wrap.querySelector(`.ptable-row:nth-child(${e.period}) .cell:nth-child(${e.group})`);
+    if(cell){
+      cell.classList.remove('empty'); cell.textContent=e.sym; cell.title=`${e.name} (Z=${e.Z})`;
+      cell.onclick=()=>{State.setElement(e.Z); highlight(); renderInfo(); renderModels();};
+    }
+  });
+  highlight();
+ 
+  [...wrap.querySelectorAll('.groupLabel')].forEach(lbl=>{
+    lbl.style.pointerEvents='auto';
+    lbl.style.cursor='pointer';
+    lbl.onclick=()=>{
+      const t=lbl.textContent;
+      let txt="Representative group";
+      if(t.includes("Alkali")) txt=REP_GROUPS[0].name+": "+REP_GROUPS[0].note;
+      else if(t.includes("Alkaline")) txt=REP_GROUPS[1].name+": "+REP_GROUPS[1].note;
+      else if(t.includes("Halogens")) txt=REP_GROUPS[2].name+": "+REP_GROUPS[2].note;
+      else if(t.includes("Noble")) txt=REP_GROUPS[3].name+": "+REP_GROUPS[3].note;
+      showModal('Representative groups', txt);
+    };
+  });
+}
+function highlight(){
+  const wrap=document.getElementById('ptable');
+  wrap.querySelectorAll('.cell').forEach(c=>c.classList.remove('selected'));
+  const e=byZ[State.selectedZ];
+  const cell=wrap.querySelector(`.ptable-row:nth-child(${e.period}) .cell:nth-child(${e.group})`);
+  if(cell) cell.classList.add('selected');
+}
+
+/* ---------------- helps ---------------- */
+const TERM = {
+  "Atomic #":"The number of protons in the element; different elements have different atomic numbers",
+  "Mass (amu)":"Average atomic mass = Σ( isotopic mass × fractional abundance ). Example for Cl: 35Cl (34.96885 u, 75.78%) and 37Cl (36.96590 u, 24.22%): 34.96885×0.7578 + 36.96590×0.2422 ≈ 35.45 u. This is a weighted mean over naturally occurring isotopes.",
+  "p⁺":"Number of protons, also known as Z. Creates a postive charge that attracts electrons. This attraction gets stronger the more protons there are.",
+  "n⁰":"Approximate number of neutrons ≈ amu − p (rounded). Neutrons are located in the nucleas with the protons and keep the elements stable.",
+  "e⁻":"Electron count, determine the overall charge of the atom.",
+  "EN":"Electronegativity: measure for how well the atom attracts electrons (decreases as the atomic radius gets larger).",
+  "IE₁ (eV)":"First ionization energy: energy to remove the first electron from the atom (decreases as the atomic radius gets larger).",
+  "Charge":"Overall charge of the atom; protons − electrons.",
+  "atomic radius":" Currently doesnt work but estimate for the atomic radius.",
+  "# of e":"Slider: change the number of electrons in the atom"
+};
+function describeFamily(f){
+  const map={
+    "alkali metals":"Group 1 (except H). Very reactive metals especially with water, highly conductive, +1 ions.",
+    "alkaline earth metals":"Group 2. Reactive metals, most are fairly common, higher melting point than alkali metals, +2 ions.",
+    "halogens":"Group 17. Extremely reactive nonmetals most are highly toxic. All are gases aside from Br which is a liquid and I which is a solid, also produce salts −1 ions.",
+    "noble gases":"Group 18. Very low reactivity as they have full octets, odorless, colorless, tasteless, nonflammable, 0 charge.",
+    "lanthanides":"Rare Metals, oxidize rapidly in air.",
+    "actanides":"Very Radioactive elements, unstable and release energy.",
+    "metalloids":"Semiconducting elements have some traits of metals and some of nonmetals.",
+    "nonmetals":"This group makes up all elements that are not taken by different groups. Most form covalent bonds and are poor conductors of electricity. They show little or no reaction with acids and are dull in appearance and brittle.",
+    "alkali metal":"Group 1.",
+    "transition metals":"d-block metals. Conductive, form positive ions, likely to form covalent compounds due to electronegativity, malleable."
+  };
+  return map[f] || `Family: ${f}`;
+}
+function describeGroup(g){return `Group ${g}: same column → similar valence patterns.`;}
+function describePeriod(p){return `Period ${p}: row number; higher period → larger shells.`;}
+
+function electronsOf(Z,d){return Math.max(0,Z+d)}
+function chargeLabel(Z,eCount){const q=Z-eCount; if(q===0) return "0 (neutral)"; return q>0?`+${q} (cation)`:`${q} (anion)`;}
+
+/* isotope helpers */
+function massNumber(e, deltaN){
+  const nApprox = Math.max(0, Math.round((e.mass ?? e.Z) - e.Z) + (deltaN||0));
+  return e.Z + nApprox;
+}
+function isotopeLabel(e, deltaN){ const A=massNumber(e,deltaN); return `${e.name}-${A}`; }
+function isotopeSymbol(e, deltaN){ const A=massNumber(e,deltaN); return `<sup>${A}</sup>${e.sym}`; }
+
+const SUBS = ["1s","2s","2p","3s","3p","4s","3d","4p","5s","4d","5p","6s","4f","5d","6p","7s","5f","6d","7p"];
+function subshellCap(tag){ const l=tag.slice(-1); return l==='s'?2:l==='p'?6:l==='d'?10:l==='f'?14:2; }
+function nOf(tag){ return parseInt(tag,10); }
+function lOf(tag){ const t=tag.slice(-1); return t==='s'?0:t==='p'?1:t==='d'?2:3; }
+function fillSubshells(Z, deltaE){
+  let e = Math.max(0, Z + deltaE);
+  const fill = [];
+  for(const sub of SUBS){
+    if(e<=0) break;
+    const max = subshellCap(sub);
+    const put = Math.min(max, e);
+    fill.push({tag: sub, n: nOf(sub), l: lOf(sub), max, count: put});
+    e -= put;
+  }
+  return fill;
+}
+function bohrShells(Z, deltaE){
+  const fill = fillSubshells(Z, deltaE);
+  const byN = new Map();
+  for (const s of fill) byN.set(s.n, (byN.get(s.n)||0) + s.count);
+  return [...byN.entries()].sort((a,b)=>a[0]-b[0]).map(([n,count])=>({n,count}));
+}
+
+function fillCountsByN(Z, deltaE){
+  const fill = fillSubshells(Z, deltaE);      
+  const byN = new Map();                      
+  let last = null;                            
+  for(const s of fill){
+    last = s;
+    const rec = byN.get(s.n) || {total:0,s:0,p:0,d:0,f:0};
+    rec.total += s.count;
+    const t = s.tag.slice(-1);
+    rec[t] += s.count;
+    byN.set(s.n, rec);
+  }
+  return { byN, valence: last };              
+}
+
+function slaterZeff(Z, deltaE){
+  const { byN, valence } = fillCountsByN(Z, deltaE);
+  if(!valence) return 1;                      
+  const n = valence.n;
+  const type = valence.tag.slice(-1);         
+  const same = byN.get(n) || {total:0,s:0,p:0,d:0,f:0};
+
+  let S = 0;
+  if(type==='s' || type==='p'){
+    const sameShell = Math.max(0, same.total - 1);             
+    const sameCoef  = (n===1 ? 0.30 : 0.35);
+    const n1 = (byN.get(n-1)?.total || 0);
+    const n2orLess = Array.from(byN.keys())
+                          .filter(k=>k<=n-2)
+                          .reduce((a,k)=>a+(byN.get(k)?.total||0),0);
+    S = sameCoef*sameShell + 0.85*n1 + 1.00*n2orLess;
+  }else{
+    const sameShell = Math.max(0, same.total - 1);
+    const n2orLess = Array.from(byN.keys())
+                          .filter(k=>k<=n-1) 
+                          .reduce((a,k)=>a+(byN.get(k)?.total||0),0);
+    const nsnpSame = (same.s + same.p);
+    S = 0.35*sameShell + 1.00*(n2orLess + nsnpSame);
+  }
+  const Zeff = Math.max(1, Z - S);
+  return Zeff;
+}
+
+function toyRadiusPm(Z, deltaE){
+  const { valence } = fillCountsByN(Z, deltaE);
+  const n = Math.max(1, valence ? valence.n : 1);
+  const Zeff = slaterZeff(Z, deltaE);
+  const k = 52.9 * 1.15;               
+  let r = k * (n*n) / Zeff;
+  const t = valence ? valence.tag.slice(-1) : 's';
+  if(t==='s') r *= 1.05;
+  if(t==='p') r *= 0.95;
+  r = Math.min(220, Math.max(25, r));
+  return +r.toFixed(1);
+}
+
+/* block and groups */
+function elementBlock(e){
+  if (e.sym==="He") return "s";
+  if (e.group>=1 && e.group<=2) return "s";
+  if (e.group>=3 && e.group<=12) return "d";
+  if (e.group>=13 && e.group<=18) return "p";
+  if ((e.family||"").toLowerCase().includes("lanthan")) return "f";
+  if ((e.family||"").toLowerCase().includes("actan")) return "f";
+  return "p";
+}
+const BLOCK_EXPLAIN = {
+  s:"s-block: Groups 1–2 (+He). Valence electrons in s orbitals. Only holds 2 electrons",
+  p:"p-block: Groups 13–18. Valence electrons are in the p orbital and fill the 3 p axes",
+  d:"d-block: Valance some electrons fill the D block (n-1), located before the highest energy level.",
+  f:"f-block: Lanthanides + Actinides. Fill the f orbital, it looks like a splatter."
+};
+const REP_GROUPS = [
+  {name:"Alkali metals",   g:1,  note:"Group 1 (except H). Form +1 ions. Very reactive."},
+  {name:"Alkaline earths", g:2,  note:"Group 2. Form +2 ions. Reactive, higher mp than Group 1."},
+  {name:"Halogens",        g:17, note:"Group 17. Highly reactive nonmetals. Tend to form −1 ions."},
+  {name:"Noble gases",     g:18, note:"Group 18. Full valence shells. Very low reactivity."}
+];
+
+/* full electron configuration */
+function fullElectronConfig(Z, deltaE){
+  const fs = fillSubshells(Z, deltaE);
+  return fs.map(s=>`${s.tag}${String(s.count).sup()}`).join(' ');
+}
+
+
+/* ---------------- Info views ---------------- */
+function renderElementKey(e,eCount){
+  const qStr = chargeLabel(e.Z,eCount).split(' ')[0];
+  const A = massNumber(e, State.deltaN);
+  return `
+    <div class="keytile">
+      <div class="nuclide">
+        <span class="nu-A">${A}</span>
+        <span class="nu-Z">${e.Z}</span>
+        <div class="nu-sym">${e.sym}</div>
+        <span class="nu-Q">${qStr}</span>
+        <span class="nu-name">${e.name}</span>
+      </div>
+    </div>
+  `;
+}
+function wireKeyPopups(pane,e,eCount){
+  pane.querySelector('.nu-A').onclick   = ()=>showModal('Mass number (A)', 'A = Z + n. Counts protons + neutrons for a specific isotope.');
+  pane.querySelector('.nu-Z').onclick   = ()=>showModal('Atomic Number (Z)', TERM["Atomic #"]);
+  pane.querySelector('.nu-Q').onclick   = ()=>showModal('Charge', TERM["Charge"]+` Current: ${chargeLabel(e.Z,eCount)}.`);
+  pane.querySelector('.nu-sym').onclick = ()=>showModal('Element symbol', `${e.name} (${e.sym})`);
+  pane.querySelector('.nu-name').onclick= ()=>showModal('Element', `${e.name}. Family: ${e.family}. ${describeFamily(e.family)}`);
+}
+function renderElementCard(e){
+  const A = massNumber(e, State.deltaN);
+  return `
+    <div class="cardtile">
+      <div class="card-top">
+        <span class="mass">A=${A}</span>
+        <span></span>
+      </div>
+        <div class="card-sym">${e.sym}</div>
+      <div class="card-name">${e.name}</div>
+      <div style="text-align:center"><button class="card-btn" id="c-mass">Average mass: ${e.mass ?? '—'} u</button></div>
+      <div class="card-bottom"><span></span><button class="card-btn anum" id="c-z">${e.Z}</button></div>
+    </div>
+  `;
+}
+function wireCardPopups(pane,e){
+  pane.querySelector('#c-mass').onclick     = ()=>showModal('Average atomic mass (u)', TERM["Mass (amu)"]);
+  pane.querySelector('#c-z').onclick        = ()=>showModal('Atomic Number (Z)', TERM["Atomic #"]);
+}
+const TRENDS_TEXT =
+"Trends (qualitative):\n"+
+"• Atomic radius: ← across a period (→ protons pull electrons in decreasing the size), ↓ down a group (higher n, larger shells).\n"+
+"• Ionization energy (IE₁):  → across a period, ↓ down a group. This is because the more protons the more the electrons are pulled in and the hard they are to break, but the shielding and repulsion from the different n levels reduces this pull.\n"+
+"• Electronegativity: → across a period, ↓ down a group; noble gases usually excluded, but in reality all protons attract electrons so even helium has a little electronegativity, it would just require really high pressure..\n";
+
+function renderInfo(){
+  const e=byZ[State.selectedZ];
+  const eCount=electronsOf(e.Z,State.deltaE);
+  const nApprox=Math.round(e.mass ?? e.Z)-e.Z;
+  const ion=chargeLabel(e.Z,eCount);
+  const radius=toyRadiusPm(e.Z,State.deltaE);
+  const block = elementBlock(e);
+  const configFull = fullElectronConfig(e.Z, State.deltaE);
+  const pane=document.getElementById('infoPane');
+
+  if(State.infoTab==='key'){ pane.innerHTML=renderElementKey(e,eCount); wireKeyPopups(pane,e,eCount); return; }
+  if(State.infoTab==='card'){ pane.innerHTML=renderElementCard(e); wireCardPopups(pane,e); return; }
+
+  pane.innerHTML=`
+    <div class="info-header">
+      <div><div class="symbol">${e.sym}</div><div class="name">${e.name}</div></div>
+      <div class="tags">
+        <button class="badge" id="b-family">${e.family}</button>
+        <button class="badge" id="b-cat">${e.cat||''}</button>
+        <button class="badge" id="b-group">Group ${e.group}</button>
+        <button class="badge" id="b-period">Period ${e.period}</button>
+        <button class="badge" id="b-block">${block}-block</button>
+        <button class="badge" id="b-rep">Representative group</button>
+        <span class="badge">${e.radio?'radioactive':'stable'}</span>
+      </div>
+    </div>
+
+    <div class="slider">
+      <label>Electrons # of e</label>
+      <input id="deltaE" type="range" min="${-e.Z}" max="${e.Z}" step="1" value="${State.deltaE}">
+      <button class="badge" id="b-delta"># of e</button>
+      <span class="mono">${State.deltaE>=0?`+${State.deltaE}`:State.deltaE}</span>
+      <button class="badge" id="b-charge">Charge: ${ion}</button>
+    </div>
+
+    <div class="slider">
+      <label>Neutrons # of n</label>
+      <input id="deltaN" type="range" min="-10" max="10" step="1" value="${State.deltaN}">
+      <button class="badge" id="b-deltaN"># of n</button>
+      <span class="mono">${State.deltaN>=0?`+${State.deltaN}`:State.deltaN}</span>
+      <button class="badge" id="b-isotope">Isotope: ${isotopeLabel(e, State.deltaN)} (${isotopeSymbol(e, State.deltaN)})</button>
+    </div>
+
+    <div class="key">
+      <button class="card-btn" id="k-z"><b>Atomic #</b> ${e.Z}</button>
+      <button class="card-btn" id="k-mass"><b>Mass (amu)</b> ${e.mass ?? 'n/a'}</button>
+      <button class="card-btn" id="k-p"><b>p⁺</b> ${e.Z}</button>
+      <button class="card-btn" id="k-n"><b>n⁰</b> ~${nApprox}</button>
+      <button class="card-btn" id="k-e"><b>e⁻</b> ${eCount}</button>
+      <button class="card-btn" id="k-en"><b>EN</b> ${e.EN??'n/a'}</button>
+      <button class="card-btn" id="k-ie"><b>IE₁ (eV)</b> ${e.IE1??'n/a'}</button>
+      <button class="card-btn" id="k-r"><b>atomic radius</b> ${radius}</button>
+    </div>
+
+    <div style="margin-top:8px"><b>Uses:</b> <span id="usesTxt">${e.uses||'—'}</span></div>
+    <div class="mono" style="margin-top:8px">Electron configuration: ${configFull}</div>
+    <div style="margin-top:6px"><button class="badge" id="b-trends">Periodic trends</button></div>
+  `;
+
+  document.getElementById('deltaE').oninput=(ev)=>{State.setDeltaE(parseInt(ev.target.value,10)); renderInfo(); renderModels();};
+  document.getElementById('deltaN').oninput=(ev)=>{State.setDeltaN(parseInt(ev.target.value,10)); renderInfo();};
+
+  document.getElementById('b-family').onclick = ()=>showModal('Family', describeFamily(e.family));
+  document.getElementById('b-cat').onclick    = ()=>showModal('Category', `Category: ${e.cat}`);
+  document.getElementById('b-group').onclick  = ()=>showModal('Group', describeGroup(e.group));
+  document.getElementById('b-period').onclick = ()=>showModal('Period', describePeriod(e.period));
+  document.getElementById('b-delta').onclick  = ()=>showModal('# of e', TERM["# of e"]);
+  document.getElementById('b-charge').onclick = ()=>showModal('Charge', TERM["Charge"]);
+  document.getElementById('b-deltaN').onclick = ()=>showModal('# of n','Adjusts neutrons to visualize isotopes. Teaching aid only.');
+  document.getElementById('b-isotope').onclick = ()=>{
+    const A = massNumber(e, State.deltaN);
+    showModal('Isotope name', `${isotopeLabel(e, State.deltaN)}  •  Symbol: ${e.sym}  •  Mass number A=${A}`);
+  };
+  document.getElementById('b-block').onclick  = ()=>showModal(`${block}-block`, BLOCK_EXPLAIN[block]);
+  document.getElementById('b-rep').onclick = ()=>{
+    const rep = REP_GROUPS.find(r=>r.g===e.group);
+    const txt = rep ? `${rep.name}: ${rep.note}` : `Group ${e.group}: ${describeGroup(e.group)}`;
+    showModal('Representative group', txt);
+  };
+  document.getElementById('b-trends').onclick = ()=>showModal('Periodic trends', TRENDS_TEXT.replaceAll('\n','<br>'));
+
+  document.getElementById('k-z').onclick   = ()=>showModal('Atomic #', TERM["Atomic #"]);
+  document.getElementById('k-mass').onclick= ()=>showModal('Mass (amu)', TERM["Mass (amu)"]);
+  document.getElementById('k-p').onclick   = ()=>showModal('p⁺', TERM["p⁺"]);
+  document.getElementById('k-n').onclick   = ()=>showModal('n⁰', TERM["n⁰"]);
+  document.getElementById('k-e').onclick   = ()=>showModal('e⁻', TERM["e⁻"]);
+  document.getElementById('k-en').onclick  = ()=>showModal('EN', TERM["EN"]);
+  document.getElementById('k-ie').onclick  = ()=>showModal('IE₁ (eV)', TERM["IE₁ (eV)"]);
+  document.getElementById('k-r').onclick   = ()=>showModal('atomic radius', TERM["atomic radius"]);
+}
+
+/* ---------------- Models: Bohr / Orbitals / forces / Laws ---------------- */
+
+let bohrSketch=null;
+function makeBohrSketch(){
+  const TILT=0.55;
+  return p=>{
+    const W=360,H=320;
+    p.setup=()=>{const cnv=p.createCanvas(W,H); cnv.parent('bohrHost');};
+    p.draw=()=>{
+      const e=byZ[State.selectedZ];
+      const shells=bohrShells(e.Z, State.deltaE);
+      p.background(15,23,42); p.translate(W/2,H/2);
+      p.noStroke(); p.fill(80,140,255); p.circle(0,0,28);
+      p.fill(230); p.textAlign(p.CENTER,p.CENTER); p.textSize(12);
+      p.text(`${e.sym}\nZ=${e.Z}`,0,0);
+      const maxR=Math.min(W,H)*0.42;
+      const baseR=40;
+      const ringR=i=>baseR+(maxR-baseR)*(i+1)/(shells.length+0.5);
+      shells.forEach((s,i)=>{
+        const r=ringR(i);
+        p.push(); p.noFill(); p.stroke(100);
+        p.ellipse(0,0,2*r,2*r*Math.cos(TILT)); p.pop();
+        p.noStroke(); p.fill(180); p.textAlign(p.CENTER,p.CENTER); p.textSize(11);
+        p.text(`n=${s.n}`,0, -(r*Math.cos(TILT))-10);
+        for(let j=0;j<s.count;j++){
+          const ang=(j/s.count)*p.TWO_PI + p.frameCount*(0.002+0.0005*i);
+          const x=r*Math.cos(ang), y=r*Math.cos(TILT)*Math.sin(ang);
+          p.noStroke(); p.fill(120,200,255); p.circle(x,y,6);
+        }
+      });
+      p.fill(200); p.textAlign(p.LEFT,p.TOP); p.textSize(11);
+      p.text('Bohr model: displays electron energy levels',8,-H/2+8);
+    };
+  };
+}
+function drawBohrPanel(hostId,statsId){
+  const host=document.getElementById(hostId);
+  host.innerHTML='';
+  if(bohrSketch) bohrSketch.remove(); bohrSketch=new p5(makeBohrSketch());
+  const e=byZ[State.selectedZ], eCount=electronsOf(e.Z,State.deltaE);
+  document.getElementById(statsId).innerHTML=`Z=${e.Z}  e⁻=${eCount}  EN=${e.EN??'n/a'}  IE₁=${e.IE1??'n/a'} eV · <button class="badge" id="bohrHelp">What is this?</button>`;
+  document.getElementById('bohrHelp').onclick=()=>showModal('Bohr model', 'Each ring is an energy level and displays the number of electrons in the level. Was actually proven as ineffective and wrong but i am using it for the sake of simplicity (and because its what we were taught)');
+}
+
+/* Orbitals model - some parts dont work FIX LATER */
+let orbitalsSketch=null;
+function renderOrbitalsPanel(){
+  const pane=document.getElementById('modelsPane');
+  pane.innerHTML = `
+    <div class="box">
+      <b>Orbitals</b>
+      <div style="display:flex;gap:8px;align-items:center;margin:6px 0 10px">
+        <button class="badge" id="oInfo">What am I seeing?</button>
+        <label class="badge" style="cursor:pointer"><input type="checkbox" id="oAxes" checked> axes</label>
+        <label class="badge" style="cursor:pointer"><input type="checkbox" id="oAnimate" checked> animate</label>
+      </div>
+      <div id="orbitalsCanvas"></div>
+      <div class="stats mono" id="orbitalsStats"></div>
+    </div>
+  `;
+  if (orbitalsSketch) orbitalsSketch.remove();
+  orbitalsSketch = new p5(makeOrbitalsSketch());
+  document.getElementById('oInfo').onclick=()=>showModal('Electron orbitals', 'Shows the different orbitals electrons take, S is the first two columbs on the periodic taable and forms a spherelikeshape, p has 3 axes with 2 electrons each that form dumbelllike shapes that i am too lazy to implement, the d orbital is also like the p orbital, however it is only filled up AFTER the first s orbital of the energy level in front of it is. The f orbital on the other hand is filled up after the s orbital that is two energly levels ahead and looks randomly scattered');
+  document.getElementById('oAxes').onchange=()=>orbitalsSketch && orbitalsSketch.setAxes(document.getElementById('oAxes').checked);
+  document.getElementById('oAnimate').onchange=()=>orbitalsSketch && orbitalsSketch.setAnimate(document.getElementById('oAnimate').checked);
+}
+function makeOrbitalsSketch(){
+  const W=680,H=520, PAD=16; const TILT=0.9;
+  let showAxes=true, animate=true, t=0;
+  const cols=4, cellW=(W-2*PAD-(cols-1)*10)/cols, cellH=150;
+
+  function drawAxes(p,cx,cy,scale){
+    p.stroke(90);
+    p.line(cx,cy, cx+scale,cy);
+    p.line(cx,cy, cx,cy-scale);
+    p.line(cx,cy, cx-scale*0.7,cy+scale*0.7*TILT);
+  }
+  function lobe(p,cx,cy,rx,ry,rot){
+    p.push(); p.translate(cx,cy); p.rotate(rot);
+    p.noStroke(); p.fill(120,200,255,140);
+    p.ellipse(0,0,2*rx,2*ry*TILT);
+    p.pop();
+  }
+  function ring(p,cx,cy,r){
+    p.noFill(); p.stroke(120,200,255,140); p.ellipse(cx,cy,2*r,2*r*TILT);
+  }
+
+  const drawers={
+    s(p,cx,cy,k){ lobe(p,cx,cy,22*k,22*k,0); },
+    p_triplet(p,cx,cy,k,phase){
+      const r=26*k;
+      lobe(p,cx,cy,r,12*k, phase+0);
+      lobe(p,cx,cy,12*k,r, phase+Math.PI/2);
+      ring(p,cx,cy,18*k);
+    },
+    d_five(p,cx,cy,k,phase){
+      const r=22*k;
+      for(let i=0;i<4;i++) lobe(p,cx,cy,10*k,r, phase+i*Math.PI/2+Math.PI/4);
+      ring(p,cx,cy,14*k);
+      lobe(p,cx,cy,10*k,18*k,phase);
+      lobe(p,cx,cy,10*k,18*k,phase+Math.PI/2);
+    },
+    f_seven(p,cx,cy,k,phase){
+      const r=20*k;
+      for(let i=0;i<6;i++) lobe(p,cx,cy,8*k,18*k, phase+i*Math.PI/3);
+      ring(p,cx,cy,16*k);
+    }
+  };
+
+  function computeCells(Z,deltaE){
+    const fill=fillSubshells(Z,deltaE);
+    const present={s:false,p:false,d:false,f:false};
+    fill.forEach(s=>{ if(s.tag.endsWith('s'))present.s=true; if(s.tag.endsWith('p'))present.p=true; if(s.tag.endsWith('d'))present.d=true; if(s.tag.endsWith('f'))present.f=true; });
+    const cells=[];
+    const push=(title,drawer)=>cells.push({title,drawer});
+    if(present.s) push('s (sphere)', (p,cx,cy,k,ph)=>drawers.s(p,cx,cy,k));
+    if(present.p) push('p (3 dumbells)', (p,cx,cy,k,ph)=>drawers.p_triplet(p,cx,cy,k,ph));
+    if(present.d) push('d (5 dumbells)', (p,cx,cy,k,ph)=>drawers.d_five(p,cx,cy,k,ph));
+    if(present.f) push('f (7 dumbells)', (p,cx,cy,k,ph)=>drawers.f_seven(p,cx,cy,k,ph));
+    return cells;
+  }
+
+  let cacheKey='', cells=[];
+
+  return p=>{
+    p.setAxes = v=>{showAxes=v};
+    p.setAnimate = v=>{animate=v};
+    p.setup=()=>{ const cnv=p.createCanvas(W,H); cnv.parent('orbitalsCanvas'); p.noStroke(); update(); };
+    p.draw=()=>{
+      const e=byZ[State.selectedZ];
+      const key=`${State.selectedZ}:${State.deltaE}`;
+      if(key!==cacheKey){ update(); cacheKey=key; }
+      p.background(15,23,42);
+      let x=PAD, y=PAD, idx=0;
+      for(const cell of cells){
+        p.noFill(); p.stroke(60); p.rect(x-4,y-4,cellW+8,cellH+8,10);
+        p.noStroke(); p.fill(200); p.textSize(12); p.text(cell.title, x, y-8);
+        const cx=x+cellW/2, cy=y+cellH/2; const scale=Math.min(cellW,cellH)*0.35;
+        if(showAxes) drawAxes(p,cx,cy,scale*0.9);
+        const phase = animate? t*0.02 + idx*0.4 : 0;
+        cell.drawer(p,cx,cy,scale/28,phase);
+        idx++; x+=cellW+10; if((idx)%cols===0){ x=PAD; y+=cellH+18; }
+      }
+      t++;
+      const fill=fillSubshells(e.Z,State.deltaE);
+      const text=fill.map(s=>`${s.tag}${s.count}`).join(' ');
+      const stats=document.getElementById('orbitalsStats'); if(stats) stats.textContent=`config: ${text}  ·  Shapes are qualitative (teaching)`;
+    };
+    function update(){ const e=byZ[State.selectedZ]; cells=computeCells(e.Z,State.deltaE); }
+  };
+}
+
+/* forces diagram - Can someone change the description idk how to write it   */
+function renderforces(container){
+  container.innerHTML = `
+    <div class="box">
+      <b>forces diagram</b>
+      <div style="display:flex;gap:8px;align-items:center;margin:6px 0 10px">
+        <button class="badge" id="fInfo">What forces?</button>
+        <label class="badge" style="cursor:pointer"><input type="checkbox" id="fAttract" checked> attraction</label>
+        <label class="badge" style="cursor:pointer"><input type="checkbox" id="fRepel" checked> repulsion</label>
+        <label class="badge" style="cursor:pointer"><input type="checkbox" id="fNet" checked> net</label>
+      </div>
+      <div id="forcesCanvas"></div>
+      <div class="stats mono" id="forcesLegend"> Key: 
+Blue: nucleus to electron attraction · Red: electron to electron repulsion · Green: outer ring</div>
+    </div>`;
+  if(window._forcesSketch) window._forcesSketch.remove();
+  window._forcesSketch = new p5(makeforcesSketch());
+  const q=(id)=>document.getElementById(id);
+  q('fInfo').onclick=()=>showModal('forces shown', 'attraction, when the protons in the nulceas attract the electrons, repulsions, when the electrons repel each other this also happens for energy levels but im too lazy to code that.');
+  ['fAttract','fRepel','fNet'].forEach(id=>{
+    q(id).onchange=()=>{ if(window._forcesSketch && window._forcesSketch.setFlags){ window._forcesSketch.setFlags(q('fAttract').checked,q('fRepel').checked,q('fNet').checked);} };
+  });
+}
+function makeforcesSketch(){
+  const TILT=0.65;
+  let showA=true, showR=true, showN=true;
+  return p=>{
+    const W=560,H=340,cx=W/2,cy=H/2, CORE=20;
+    p.setFlags=(a,r,n)=>{showA=a;showR=r;showN=n;};
+    p.setup=()=>{ const cnv=p.createCanvas(W,H); cnv.parent('forcesCanvas'); };
+    p.draw=()=>{
+      p.background(15,23,42);
+      const e = byZ[State.selectedZ];
+      const total = Math.max(1, e.Z + State.deltaE);
+      const rx=Math.min(W,H)*0.33, ry=rx*TILT;
+
+      p.noStroke(); p.fill(250,120,160); p.circle(cx,cy,CORE*2);
+      p.fill(20); p.textAlign(p.CENTER,p.CENTER); p.textSize(12); p.text(`Z=${e.Z}`,cx,cy);
+
+      p.noFill(); p.stroke(90); p.ellipse(cx,cy,2*rx,2*ry);
+
+      const m = Math.min(8, total);
+      const pts=[];
+      for(let i=0;i<m;i++){
+        const ang = (i/m)*Math.PI*2 + p.frameCount*0.004;
+        pts.push({ x: cx + rx*Math.cos(ang), y: cy + ry*Math.sin(ang) });
+      }
+
+      if(showA){ p.stroke(96,165,250); p.fill(96,165,250); pts.forEach(pt=> arrow(pt.x,pt.y, cx,cy, 12)); }
+
+      if(showR){
+        p.stroke(239,68,68); p.fill(239,68,68);
+        for(let i=0;i<m;i++){
+          const a=pts[i], b=pts[(i+1)%m];
+          const midx=(a.x+b.x)/2, midy=(a.y+b.y)/2;
+          const vx = (a.x-b.x), vy=(a.y-b.y);
+          const len = Math.hypot(vx,vy)||1;
+          const nx = (vx/len), ny=(vy/len);
+          arrow(midx, midy, midx+nx*24, midy+ny*24, 10);
+        }
+      }
+
+      if(showN && m>=2){
+        const a=pts[0];
+        let vx=(cx-a.x), vy=(cy-a.y);
+        const b=pts[1], c=pts[m-1];
+        const norm=(u,v)=>{const L=Math.hypot(u,v)||1; return [u/L, v/L];}
+        const [rbx,rby]=norm(a.x-b.x,a.y-b.y);
+        const [rcx,rcy]=norm(a.x-c.x,a.y-c.y);
+        vx+=rbx*40 + rcx*40; vy+=rby*40 + rcy*40;
+        p.stroke(34,197,94); p.fill(34,197,94); arrow(a.x,a.y, a.x+vx*0.08, a.y+vy*0.08, 12);
+      }
+
+      function arrow(x1,y1,x2,y2,head){
+        p.line(x1,y1,x2,y2);
+        const ang=Math.atan2(y2-y1,x2-x1);
+        const hx=x2-head*Math.cos(ang-Math.PI/8), hy=y2-head*Math.sin(ang-Math.PI/8);
+        const hx2=x2-head*Math.cos(ang+Math.PI/8), hy2=y2-head*Math.sin(ang+Math.PI/8);
+        p.triangle(x2,y2,hx,hy,hx2,hy2);
+      }
+    };
+  };
+}
+
+/* more cool stuff trust ill finish it */
+function renderLawsPanel(){
+  const pane=document.getElementById('modelsPane');
+  pane.innerHTML = `
+    <div class="box">
+      <b>Electron placement laws</b>
+      <div style="margin:6px 0 10px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="badge" id="lawAufbau">Aufbau principle</button>
+        <button class="badge" id="lawHund">Hund’s rule</button>
+        <button class="badge" id="lawPauli">Pauli exclusion</button>
+      </div>
+      <div id="lawsCanvas"></div>
+      <div class="stats mono">Schematic: boxes = orbitals, ↑/↓ = spins.</div>
+    </div>
+  `;
+  if(window._lawsSketch) window._lawsSketch.remove();
+  window._lawsSketch = new p5(makeLawsSketch());
+  document.getElementById('lawAufbau').onclick=()=>showModal('Aufbau principle','Electrons fill lowest-energy orbitals first and then move on to higher energy ones');
+  document.getElementById('lawHund').onclick  =()=>showModal('Hund’s rule','Hund’s rule states that electrons first occupy all available free slots and then double up. Meaning each orbital must have at least one electron before another electron is added to that orbital.');
+  document.getElementById('lawPauli').onclick =()=>showModal('Pauli Exclusion Principle’,’Pauli Exclusion Principle states that electrons in the same orbital must have opposite spins. Electron spin is an intrinsic property and some have -1/2 and others have 1/2.');
+}
+function makeLawsSketch(){
+  return p=>{
+    const W=560,H=240; const cx=W/2;
+    p.setup=()=>{const c=p.createCanvas(W,H); c.parent('lawsCanvas'); p.textFont('monospace');};
+    p.draw=()=>{
+      p.background(15,23,42); p.fill(220); p.noStroke(); p.textSize(13);
+      p.text('Aufbau', 30, 24);
+      p.text('Hund', cx-90, 24);
+      p.text('Pauli', W-210, 24);
+
+      drawBoxes(20,40,[2,2,6,2],[2,2,0,0]); 
+      p.stroke(100); p.noFill();
+      arrow(70,60,70,40); arrow(70,100,70,80); arrow(70,140,70,120);
+
+      drawBoxes(cx-110,60,[6],[3], true); 
+      drawBoxes(W-190,60,[2],[2], false, true); 
+
+      function drawBoxes(x,y,caps,fills,hund=false,pauli=false){
+        p.stroke(90);
+        let yy=y;
+        for(let i=0;i<caps.length;i++){
+          const cap=caps[i], nbox=cap===6?3:cap===10?5:cap===14?7:1;
+          const w=22,h=16,g=6;
+          for(let b=0;b<nbox;b++){ p.noFill(); p.rect(x+b*(w+g),yy,w,h,3); }
+          const count=Math.min(caps[i],fills[i]||0);
+          const occ = hund? spread(count,nbox): fillLeft(count,nbox);
+          for(let b=0;b<nbox;b++){
+            const bx=x+b*(w+g)+3, by=yy+2;
+            if(occ[b]>=1){ p.noStroke(); p.fill(200); p.text('↑',bx,by+12); }
+            if(occ[b]===2){ p.noStroke(); p.fill(200); p.text('↑↓',bx,by+12); }
+          }
+          yy+=40;
+        }
+      }
+      function spread(n,boxes){const a=Array(boxes).fill(0);let l=n;for(let i=0;i<boxes&&l>0;i++){a[i]=1;l--;}for(let i=0;i<boxes&&l>0;i++){a[i]=2;l--;}return a;}
+      function fillLeft(n,boxes){const a=Array(boxes).fill(0);let l=n;for(let i=0;i<boxes&&l>0;i++){a[i]=Math.min(2,l);l-=a[i];}return a;}
+      function arrow(x1,y1,x2,y2){p.line(x1,y1,x2,y2);const a=Math.atan2(y2-y1,x2-x1),h=8;p.triangle(x2,y2,x2-h*Math.cos(a-0.3),y2-h*Math.sin(a-0.3),x2-h*Math.cos(a+0.3),y2-h*Math.sin(a+0.3));}
+    };
+  };
+}
+
+/* Router */
+function renderModels(){
+  const pane=document.getElementById('modelsPane'); pane.innerHTML='';
+  if(State.modelsTab==='bohr'){
+    pane.innerHTML='<div class="box"><b>Bohr model</b><div id="bohrHost"></div><div id="bohrStats" class="stats mono"></div></div>';
+    drawBohrPanel('bohrHost','bohrStats');
+  } else if(State.modelsTab==='orbitals'){
+    renderOrbitalsPanel();
+  } else if(State.modelsTab==='forces'){
+    renderforces(pane);
+  } else if(State.modelsTab==='laws'){
+    renderLawsPanel();
+  }
+}
+
+/* ----------------  tabs ---------------- */
+(function(){
+  const tabs=document.querySelectorAll('.tab');
+  const views={info:document.getElementById('view-info'),models:document.getElementById('view-models')};
+  tabs.forEach(t=>t.onclick=()=>{const tgt=t.dataset.tab; tabs.forEach(x=>x.classList.remove('active')); t.classList.add('active'); views.info.style.display=tgt==='info'?'block':'none'; views.models.style.display=tgt==='models'?'block':'none';});
+
+  const bar=document.getElementById('infoSubtabs'); const btns=bar.querySelectorAll('.subtab');
+  btns.forEach(b=>b.onclick=()=>{btns.forEach(x=>x.classList.remove('active')); b.classList.add('active'); State.setInfoTab(b.dataset.sub); renderInfo();});
+
+  const mbar=document.querySelector('.models-subtabs'); const mbtns=mbar.querySelectorAll('.models-subtab');
+  mbtns.forEach(b=>b.onclick=()=>{mbtns.forEach(x=>x.classList.remove('active')); b.classList.add('active'); State.setModelsTab(b.dataset.mtab); renderModels();});
+})();
+
+/* ---------------- end stuff ---------------- */
+window.addEventListener('load',()=>{ buildTable(); renderInfo(); renderModels(); });
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
